@@ -36,12 +36,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Cadastrar Produto'), findsOneWidget);
 
-    // Salvar vazio mostra os erros e não sai da tela
-    await tester.tap(find.text('Salvar'));
-    await tester.pump();
-    expect(find.text('Informe o nome do produto'), findsOneWidget);
-    expect(find.text('Informe um preço válido'), findsOneWidget);
-
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Nome do produto'),
       'Bola de Vôlei',
@@ -68,6 +62,53 @@ void main() {
     await tester.scrollUntilVisible(find.text('Bola de Vôlei'), 300);
     expect(find.text('Bola de Vôlei'), findsOneWidget);
     expect(find.text('R\$ 79,90'), findsOneWidget);
+  });
+
+  testWidgets('Form mostra o erro de cada regra e não sai da tela', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+
+    // Preenche nome e preço, toca em Salvar e confere as mensagens
+    Future<void> salvar(String nome, String preco, List<String> erros) async {
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nome do produto'),
+        nome,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Preço (ex: 49,90)'),
+        preco,
+      );
+      await tester.tap(find.text('Salvar'));
+      await tester.pump();
+      for (final erro in erros) {
+        expect(find.text(erro), findsOneWidget);
+      }
+    }
+
+    await salvar('', '', [
+      'Informe o nome do produto',
+      'Informe o preço',
+      'Selecione uma categoria',
+    ]);
+    await salvar('TV', 'abc', [
+      'O nome deve ter pelo menos 3 caracteres',
+      'Digite apenas números (ex: 49,90)',
+    ]);
+    await salvar('A' * 41, '10,999', [
+      'O nome deve ter no máximo 40 caracteres',
+      'Use no máximo 2 casas decimais',
+    ]);
+    await salvar('12345', '0', [
+      'O nome deve conter letras',
+      'O preço deve ser maior que zero',
+    ]);
+    await salvar('Geladeira', '150000', ['O preço máximo é R\$ 100.000,00']);
+
+    // Nenhum cadastro passou: continua na tela de cadastro
+    expect(find.text('Cadastrar Produto'), findsOneWidget);
   });
 
   test('Preço formatado em reais', () {
